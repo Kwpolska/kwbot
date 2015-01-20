@@ -85,18 +85,26 @@ class KwBotIRCProtocol(irc.IRCClient):
         if channel != '#nikola':
             LOGHANDLES[channel] = open(os.path.join(LOGDIR, channel + '.log'), 'a')
 
-    def _logmsg(self, channel, nick, message):
+    def _logmsg(self, channel, nick, message, notice=True):
         """Log a message."""
         dt = datetime.datetime.utcnow()
         date = dt.strftime('%Y-%m-%d')
         time = dt.strftime('%H:%M:%S')
         full = dt.strftime('%Y-%m-%d %H:%M:%S')
+        if notice:
+            nickg = '-{0}:{1}-'.format(nick, channel)
+        else:
+            nickg = '<{0}>'.format(nick)
         if channel == '#nikola':
             with open(os.path.join(NIKOLOGS, date + '.log'), 'a') as fh:
-                fh.write('{0} <{1}> {2}\n'.format(time, nick, message))
+                fh.write('{0} {1} {2}\n'.format(time, nickg, message))
         else:
-            LOGHANDLES[channel].write('{0} <{1}> {2}\n'.format(full, nick, message))
+            LOGHANDLES[channel].write('{0} {1} {2}\n'.format(full, nickg, message))
             LOGHANDLES[channel].flush()
+
+    def noticed(self,user, channel, message):
+        nick, _, host = user.partition('!')
+        self._logmsg(channel, nick, message, notice=True)
 
     def privmsg(self, user, channel, message):
         nick, _, host = user.partition('!')
