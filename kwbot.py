@@ -52,6 +52,7 @@ import sys
 import os
 import re
 
+from time import sleep
 from twisted.internet import defer, endpoints, protocol, task
 from twisted.python import log
 from twisted.words.protocols import irc
@@ -75,6 +76,7 @@ class KwBotIRCProtocol(irc.IRCClient):
         with open('/home/kwpolska/kwbot-password') as fh:
             NICKSERV_PWD = fh.read().strip()
         self.msg('NickServ', 'identify KwBot {0}'.format(NICKSERV_PWD))
+        sleep(2)
         for channel in self.factory.channels:
             self.join(channel)
 
