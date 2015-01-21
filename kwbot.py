@@ -79,7 +79,7 @@ class KwBotIRCProtocol(irc.IRCClient):
         with open('/home/kwpolska/kwbot-password') as fh:
             NICKSERV_PWD = fh.read().strip()
         self.msg('NickServ', 'identify KwBot {0}'.format(NICKSERV_PWD))
-        sleep(2)
+        sleep(5)
         for channel in self.factory.channels:
             self.join(channel)
 
