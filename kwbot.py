@@ -57,7 +57,10 @@ from twisted.internet import defer, endpoints, protocol, task
 from twisted.python import log
 from twisted.words.protocols import irc
 
-R = re.compile('(KwBot.? |!)(?P<command>[a-z]+)(?P<args> .*)?', re.U | re.I)
+# A regexp to recognize commands.
+CMDR = re.compile('(KwBot.? |!)(?P<command>[a-z]+)(?P<args> .*)?', re.U | re.I)
+# A regexp to remove all mIRC colors.
+COLR = re.compile('(\x03\\d\\d?|\x03\\d\\d?,\\d\\d?|\x02|\x0f|\x16|\x1d|\x1f)')
 
 
 class KwBotIRCProtocol(irc.IRCClient):
@@ -85,32 +88,38 @@ class KwBotIRCProtocol(irc.IRCClient):
         if channel != '#nikola':
             LOGHANDLES[channel] = open(os.path.join(LOGDIR, channel + '.log'), 'a')
 
-    def _logmsg(self, channel, nick, message, notice=True):
+    def _logmsg(self, channel, nick, message, notice=False, action=False):
         """Log a message."""
         dt = datetime.datetime.utcnow()
         date = dt.strftime('%Y-%m-%d')
         time = dt.strftime('%H:%M:%S')
-        full = dt.strftime('%Y-%m-%d %H:%M:%S')
         if notice:
             nickg = '-{0}:{1}-'.format(nick, channel)
+        elif action:
+            nickg = '* {0}'.format(nick)
         else:
             nickg = '<{0}>'.format(nick)
+        message = COLR.sub('', message)
         if channel == '#nikola':
             with open(os.path.join(NIKOLOGS, date + '.log'), 'a') as fh:
                 fh.write('{0} {1} {2}\n'.format(time, nickg, message))
         else:
-            LOGHANDLES[channel].write('{0} {1} {2}\n'.format(full, nickg, message))
-            LOGHANDLES[channel].flush()
+            with open(os.path.join(LOGDIR, channel, date + '.log'), 'a') as fh:
+                fh.write('{0} {1} {2}\n'.format(time, nickg, message))
 
-    def noticed(self,user, channel, message):
+    def noticed(self, user, channel, message):
         nick, _, host = user.partition('!')
         self._logmsg(channel, nick, message, notice=True)
+
+    def action(self, user, channel, message):
+        nick, _, host = user.partition('!')
+        self._logmsg(channel, nick, message, action=True)
 
     def privmsg(self, user, channel, message):
         nick, _, host = user.partition('!')
         self._logmsg(channel, nick, message)
         message = message.strip()
-        m = R.match(message)
+        m = CMDR.match(message)
         if not m:
             return
 
@@ -141,7 +150,7 @@ class KwBotIRCProtocol(irc.IRCClient):
         return 'pong'
 
     def command_help(self, *args):
-        return 'This is KwBot.  Read more: https://chriswarrick.com/kwbot/'
+        return 'This is KwBot.  https://chriswarrick.com/kwbot/'
 
     def command_clear(self, originator, args, channel):
         if originator != 'ChrisWarrick':
@@ -166,6 +175,11 @@ class KwBotIRCProtocol(irc.IRCClient):
         self.toBeDelivered[channel][target].append([time, originator, msg])
         return 'acknowledged.'
 
+    def command_logs(self, originator, args, channel):
+        if channel == '#nikola':
+            return 'Logs for #nikola: http://irclogs.getnikola.com/'
+        else:
+            return 'This channel is logged, but the logs are not available publicly yet.  Channel operators can ask for publication.'
 
     def _sendTells(self, target, channel):
         d = self.toBeDelivered.get(channel, {}).pop(target, [])
