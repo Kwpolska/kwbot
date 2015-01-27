@@ -46,7 +46,6 @@
 # -*- coding: utf-8 -*-
 LOGDIR = '/home/kwpolska/virtualenvs/kwbot/logs'
 NIKOLOGS = '/home/kwpolska/nikola-logs/logs'
-LOGHANDLES = {}
 import datetime
 import sys
 import os
@@ -85,11 +84,12 @@ class KwBotIRCProtocol(irc.IRCClient):
 
     def joined(self, channel):
         log.msg('joined ' + channel)
-        if channel != '#nikola':
-            LOGHANDLES[channel] = open(os.path.join(LOGDIR, channel + '.log'), 'a')
 
     def _logmsg(self, channel, nick, message, notice=False, action=False):
         """Log a message."""
+        cd = os.path.join(LOGDIR, channel)
+        if channel != '#nikola' and not os.path.exists(cd):
+            os.makedirs(cd)
         dt = datetime.datetime.utcnow()
         date = dt.strftime('%Y-%m-%d')
         time = dt.strftime('%H:%M:%S')
@@ -104,7 +104,7 @@ class KwBotIRCProtocol(irc.IRCClient):
             with open(os.path.join(NIKOLOGS, date + '.log'), 'a') as fh:
                 fh.write('{0} {1} {2}\n'.format(time, nickg, message))
         else:
-            with open(os.path.join(LOGDIR, channel, date + '.log'), 'a') as fh:
+            with open(os.path.join(cd, date + '.log'), 'a') as fh:
                 fh.write('{0} {1} {2}\n'.format(time, nickg, message))
 
     def noticed(self, user, channel, message):
