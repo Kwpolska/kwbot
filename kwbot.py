@@ -51,7 +51,6 @@ import sys
 import os
 import re
 
-from time import sleep
 from twisted.internet import defer, endpoints, protocol, task
 from twisted.python import log
 from twisted.words.protocols import irc
@@ -66,6 +65,7 @@ class KwBotIRCProtocol(irc.IRCClient):
     nickname = 'KwBot'
     realname = 'Chris Warrick’s Friendly Bot'
     versionName = 'KwBot'
+    identified = False
 
     def __init__(self):
         self.deferred = defer.Deferred()
@@ -78,9 +78,6 @@ class KwBotIRCProtocol(irc.IRCClient):
         with open('/home/kwpolska/kwbot-password') as fh:
             NICKSERV_PWD = fh.read().strip()
         self.msg('NickServ', 'identify KwBot {0}'.format(NICKSERV_PWD))
-        sleep(5)
-        for channel in self.factory.channels:
-            self.join(channel)
 
     def joined(self, channel):
         log.msg('joined ' + channel)
@@ -109,7 +106,13 @@ class KwBotIRCProtocol(irc.IRCClient):
 
     def noticed(self, user, channel, message):
         nick, _, host = user.partition('!')
-        self._logmsg(channel, nick, message, notice=True)
+        if (not self.identified and nick.lower() == 'nickserv'
+            and 'identified' in message):
+            self.identified = True
+            for ch in self.factory.channels:
+                self.join(ch)
+        if channel != '*':
+            self._logmsg(channel, nick, message, notice=True)
 
     def action(self, user, channel, message):
         nick, _, host = user.partition('!')
