@@ -223,4 +223,5 @@ def main(reactor, description):
 
 if __name__ == '__main__':
     log.startLogging(sys.stderr)
+    log.startLogging(open(os.path.join(LOGDIR, 'KwBot.log'), 'a'))
     task.react(main, ['tcp:irc.freenode.net:6667'])
