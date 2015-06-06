@@ -2,7 +2,6 @@
 # -*- encoding: utf-8 -*-
 # KwBot
 # A simple, opinionated Python/Twisted bot.
-# INSERT TAGLINE HERE.
 # Copyright © 2015, Chris Warrick.
 # All rights reserved.
 #
@@ -227,6 +226,17 @@ class KwBotIRCFactory(protocol.ReconnectingClientFactory):
 class GHIssuesResource(resource.Resource):
     isLeaf = True
 
+    repomap = {
+        'getnikola/nikola': '#nikola',
+        'getnikola/nikola-site': '#nikola',
+        'getnikola/nikola-themes': '#nikola',
+        'getnikola/nikola-users': '#nikola',
+        'getnikola/plugins': '#nikola',
+        'getnikola/coil': '#nikola',
+        'Kwpolska/kwbot': '##kwbot',
+
+    }
+
     def render_GET(self, request):
         request.setHeader("content-type", "text/plain")
         request.setResponseCode(400)
@@ -260,11 +270,19 @@ class GHIssuesResource(resource.Resource):
             request.setResponseCode(400)
             return b'wtf info'
 
+        repo_full = data['repository']['full_name']
+
+        if repo_full not in self.repomap:
+            request.setResponseCode(400)
+            return b'wtf unauthorized'
+        else:
+            channel = self.repomap[repo_full]
+
         if info['action'] in ['opened', 'closed', 'reopened', 'unassigned']:
-            BOT._sendMessage(GHISSUES_TXT.format(**info), '#nikola')
+            BOT._sendMessage(GHISSUES_TXT.format(**info), channel)
         elif info['action'] == 'assigned':
             info['assignee'] = data['assignee']['login']
-            BOT._sendMessage(GHISSUES_ASSIGN.format(**info), '#nikola')
+            BOT._sendMessage(GHISSUES_ASSIGN.format(**info), channel)
         else:
             request.setResponseCode(400)
             return b'wtf action'
