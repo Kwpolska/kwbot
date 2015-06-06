@@ -43,7 +43,9 @@
 """
 
 # -*- coding: utf-8 -*-
-LOGDIR = '/home/kwpolska/virtualenvs/kwbot/logs'
+
+HOME = '/home/kwpolska/virtualenvs/kwbot'
+LOGDIR = HOME + '/logs'
 NIKOLOGS = '/home/kwpolska/nikola-logs/logs'
 
 GHISSUES_TXT = '[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017: {title} \00302\037{url}\017'
@@ -54,6 +56,8 @@ import sys
 import os
 import re
 import json
+import hmac
+import hashlib
 
 from twisted.internet import defer, protocol
 from twisted.python import log
@@ -234,8 +238,14 @@ class GHIssuesResource(resource.Resource):
         'getnikola/plugins': '#nikola',
         'getnikola/coil': '#nikola',
         'Kwpolska/kwbot': '##kwbot',
-
     }
+
+    tokenmap = {}
+
+    with open(HOME + '/tokens') as fh:
+        for l in fh:
+            k, v = l.split(':')
+            tokenmap[k] = v.strip()
 
     def render_GET(self, request):
         request.setHeader("content-type", "text/plain")
@@ -247,6 +257,7 @@ class GHIssuesResource(resource.Resource):
     def render_POST(self, request):
         request.setHeader("content-type", "text/plain")
         log.msg('GHIssues: POST {0} {1}'.format(request.uri, request.client))
+
         d = request.content.getvalue()
         data = json.loads(d)
         event = request.getHeader('X-Github-Event')
@@ -256,6 +267,7 @@ class GHIssuesResource(resource.Resource):
             return b'pong'
         elif event != 'issues':
             request.setResponseCode(400)
+            log.msg('GHIssues: wtf event')
             return b'wtf event'
         try:
             info = {
@@ -268,12 +280,21 @@ class GHIssuesResource(resource.Resource):
             }
         except KeyError:
             request.setResponseCode(400)
+            log.msg('GHIssues: wtf info')
             return b'wtf info'
 
         repo_full = data['repository']['full_name']
 
+        sig = request.getHeader('X-Hub-Signature')
+        mac = hmac.new(self.tokenmap[repo_full], msg=d, digestmod=hashlib.sha1)
+        if hmac.compare_digest('sha1=' + mac.hexdigest(), sig) is False:
+            request.setResponseCode(400)
+            log.msg('GHIssues: wtf signature')
+            return b'wtf signature'
+
         if repo_full not in self.repomap:
             request.setResponseCode(400)
+            log.msg('GHIssues: wtf unauthorized')
             return b'wtf unauthorized'
         else:
             channel = self.repomap[repo_full]
@@ -285,6 +306,7 @@ class GHIssuesResource(resource.Resource):
             BOT._sendMessage(GHISSUES_ASSIGN.format(**info), channel)
         else:
             request.setResponseCode(400)
+            log.msg('GHIssues: wtf action')
             return b'wtf action'
         request.setResponseCode(200)
         return b'ack'
