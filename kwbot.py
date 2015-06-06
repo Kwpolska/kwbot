@@ -46,19 +46,28 @@
 # -*- coding: utf-8 -*-
 LOGDIR = '/home/kwpolska/virtualenvs/kwbot/logs'
 NIKOLOGS = '/home/kwpolska/nikola-logs/logs'
+
+GHISSUES_TXT = '[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017: {title} \00302\037{url}\017'
+GHISSUES_ASSIGN = '[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017 to \00315{assignee}\017: {title} \00302\037{url}\017'
+
 import datetime
 import sys
 import os
 import re
+import json
 
-from twisted.internet import defer, endpoints, protocol, task
+from twisted.internet import defer, protocol
 from twisted.python import log
 from twisted.words.protocols import irc
+from twisted.web import server, resource
+from twisted.internet import reactor
 
 # A regexp to recognize commands.
 CMDR = re.compile('(KwBot.? |!)(?P<command>[a-z]+)(?P<args> .*)?', re.U | re.I)
 # A regexp to remove all mIRC colors.
 COLR = re.compile('(\x03\\d\\d?|\x03\\d\\d?,\\d\\d?|\x02|\x0f|\x16|\x1d|\x1f)')
+
+BOT = None
 
 
 class KwBotIRCProtocol(irc.IRCClient):
@@ -68,6 +77,8 @@ class KwBotIRCProtocol(irc.IRCClient):
     identified = False
 
     def __init__(self):
+        global BOT
+        BOT = self
         self.deferred = defer.Deferred()
         self.toBeDelivered = {}
 
@@ -180,7 +191,7 @@ class KwBotIRCProtocol(irc.IRCClient):
 
     def command_logs(self, originator, args, channel):
         if channel == '#nikola':
-            return 'Logs for #nikola: http://irclogs.getnikola.com/'
+            return 'Logs for #nikola: https://irclogs.getnikola.com/'
         else:
             return 'This channel is logged, but the logs are not available publicly yet.  Channel operators can ask for publication.'
 
@@ -213,15 +224,57 @@ class KwBotIRCFactory(protocol.ReconnectingClientFactory):
     channels = ['#nikola', '##kwbot']
 
 
-def main(reactor, description):
-    endpoint = endpoints.clientFromString(reactor, description)
-    factory = KwBotIRCFactory()
-    d = endpoint.connect(factory)
-    d.addCallback(lambda protocol: protocol.deferred)
-    return d
+class GHIssuesResource(resource.Resource):
+    isLeaf = True
 
+    def render_GET(self, request):
+        request.setHeader("content-type", "text/plain")
+        request.setResponseCode(400)
+        log.msg('GHIssues: GET {0} {1}'.format(request.uri, request.client))
+        return b'does not compute'
+
+
+    def render_POST(self, request):
+        request.setHeader("content-type", "text/plain")
+        log.msg('GHIssues: POST {0} {1}'.format(request.uri, request.client))
+        d = request.content.getvalue()
+        data = json.loads(d)
+        event = request.getHeader('X-Github-Event')
+        if event == 'ping':
+            log.msg('GHIssues: PING {0}'.format(data['hook']))
+            request.setResponseCode(200)
+            return b'pong'
+        elif event != 'issues':
+            request.setResponseCode(400)
+            return b'wtf event'
+        try:
+            info = {
+                'repo': data['repository']['name'],
+                'actor': data['sender']['login'],
+                'action': data['action'],
+                'number': data['issue']['number'],
+                'title': data['issue']['title'],
+                'url': data['issue']['html_url'],
+            }
+        except KeyError:
+            request.setResponseCode(400)
+            return b'wtf info'
+
+        if info['action'] in ['opened', 'closed', 'reopened', 'unassigned']:
+            BOT._sendMessage(GHISSUES_TXT.format(**info), '#nikola')
+        elif info['action'] == 'assigned':
+            info['assignee'] = data['assignee']['login']
+            BOT._sendMessage(GHISSUES_ASSIGN.format(**info), '#nikola')
+        else:
+            request.setResponseCode(400)
+            return b'wtf action'
+        request.setResponseCode(200)
+        return b'ack'
 
 if __name__ == '__main__':
     log.startLogging(sys.stderr)
     log.startLogging(open(os.path.join(LOGDIR, 'KwBot.log'), 'a'))
-    task.react(main, ['tcp:irc.freenode.net:6667'])
+    ircf = KwBotIRCFactory()
+    reactor.connectTCP("irc.freenode.net", 6667, ircf)
+    reactor.listenTCP(5944, server.Site(GHIssuesResource()))
+    reactor.run()
