@@ -323,6 +323,6 @@ if __name__ == '__main__':
     log.startLogging(sys.stderr)
     log.startLogging(open(os.path.join(LOGDIR, 'KwBot.log'), 'a'))
     ircf = KwBotIRCFactory()
-    reactor.connectTCP("irc.freenode.net", 6667, ircf)
+    reactor.connectTCP("chat.freenode.net", 6667, ircf)
     reactor.listenTCP(5944, server.Site(GHIssuesResource()))
     reactor.run()
