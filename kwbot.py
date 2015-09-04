@@ -244,6 +244,7 @@ class GHIssuesResource(resource.Resource):
         'getnikola/nikola-users': '#nikola',
         'getnikola/plugins': '#nikola',
         'getnikola/coil': '#nikola',
+        'getnikola/releng': '#nikola',
         'Kwpolska/kwbot': '##kwbot',
     }
 
