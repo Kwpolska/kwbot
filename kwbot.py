@@ -313,8 +313,8 @@ class GHIssuesResource(resource.Resource):
             info['assignee'] = data['assignee']['login']
             BOT._sendMessage(GHISSUES_ASSIGN.format(**info).encode('utf-8'), channel)
         else:
-            request.setResponseCode(400)
-            log.msg('GHIssues: wtf action')
+            request.setResponseCode(200)
+            log.msg('GHIssues: wtf action (200)')
             return b'wtf action'
         request.setResponseCode(200)
         return b'ack'
