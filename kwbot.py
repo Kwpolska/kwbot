@@ -65,6 +65,11 @@ from twisted.words.protocols import irc
 from twisted.web import server, resource
 from twisted.internet import reactor
 
+try:
+    import systemd.daemon
+except ImportError:
+    systemd = None
+
 # A regexp to recognize commands.
 CMDR = re.compile('(KwBot.? |!)(?P<command>[a-z]+)(?P<args> .*)?', re.U | re.I)
 # A regexp to remove all mIRC colors.
@@ -92,6 +97,8 @@ class KwBotIRCProtocol(irc.IRCClient):
         with open('/home/kwpolska/kwbot-password') as fh:
             NICKSERV_PWD = fh.read().strip()
         self.msg('NickServ', 'identify KwBot {0}'.format(NICKSERV_PWD))
+        if systemd is not None:
+            systemd.daemon.notify('READY=1')
 
     def joined(self, channel):
         log.msg('joined ' + channel)
