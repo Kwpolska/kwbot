@@ -48,8 +48,8 @@ HOME = '/home/kwpolska/virtualenvs/kwbot'
 LOGDIR = HOME + '/logs'
 NIKOLOGS = '/home/kwpolska/nikola-logs/logs'
 
-GHISSUES_TXT = '[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017: {title} \00302\037{url}\017'
-GHISSUES_ASSIGN = '[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017 to \00315{assignee}\017: {title} \00302\037{url}\017'
+GHISSUES_TXT = u'[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017: {title} \00302\037{url}\017'
+GHISSUES_ASSIGN = u'[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017 to \00315{assignee}\017: {title} \00302\037{url}\017'
 
 import datetime
 import sys
@@ -308,10 +308,10 @@ class GHIssuesResource(resource.Resource):
             channel = self.repomap[repo_full]
 
         if info['action'] in ['opened', 'closed', 'reopened', 'unassigned']:
-            BOT._sendMessage(GHISSUES_TXT.format(**info), channel)
+            BOT._sendMessage(GHISSUES_TXT.format(**info).encode('utf-8'), channel)
         elif info['action'] == 'assigned':
             info['assignee'] = data['assignee']['login']
-            BOT._sendMessage(GHISSUES_ASSIGN.format(**info), channel)
+            BOT._sendMessage(GHISSUES_ASSIGN.format(**info).encode('utf-8'), channel)
         else:
             request.setResponseCode(400)
             log.msg('GHIssues: wtf action')
