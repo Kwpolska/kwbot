@@ -44,16 +44,10 @@
 
 # -*- coding: utf-8 -*-
 
-HOME = '/home/kwpolska/virtualenvs/kwbot'
-LOGDIR = HOME + '/logs'
-NIKOLOGS = '/home/kwpolska/nikola-logs/logs'
-
-GHISSUES_TXT = u'[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017: {title} \00302\037{url}\017'
-GHISSUES_ASSIGN = u'[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017 to \00315{assignee}\017: {title} \00302\037{url}\017'
-
 import datetime
 import sys
 import os
+import io
 import re
 import json
 import hmac
@@ -70,8 +64,17 @@ try:
 except ImportError:
     systemd = None
 
+# Settings.
+HOME = '/home/kwpolska/virtualenvs/kwbot'
+LOGDIR = HOME + '/logs'
+ADMIN = 'ChrisWarrick'
+NIKOLOGS = '/home/kwpolska/nikola-logs/logs'
+CHANNELS = ["##kwbot", "#nikola"]
+GHISSUES_TXT = u'[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017: {title} \00302\037{url}\017'
+GHISSUES_ASSIGN = u'[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017 to \00315{assignee}\017: {title} \00302\037{url}\017'
+
 # A regexp to recognize commands.
-CMDR = re.compile('(KwBot.? |!)(?P<command>[a-z]+)(?P<args> .*)?', re.U | re.I)
+CMDR = re.compile('(KwBot.? |!)(?P<command>\S+)(?P<args> .*)?', re.U | re.I)
 # A regexp to remove all mIRC colors.
 COLR = re.compile('(\x03\\d\\d?|\x03\\d\\d?,\\d\\d?|\x02|\x0f|\x16|\x1d|\x1f)')
 
@@ -89,6 +92,8 @@ class KwBotIRCProtocol(irc.IRCClient):
         BOT = self
         self.deferred = defer.Deferred()
         self.toBeDelivered = {}
+        self.factoids = {}
+        self.fcount = self.load_factoids()
 
     def connectionLost(self, reason):
         self.deferred.errback(reason)
@@ -127,8 +132,8 @@ class KwBotIRCProtocol(irc.IRCClient):
 
     def noticed(self, user, channel, message):
         nick, _, host = user.partition('!')
-        if (not self.identified and nick.lower() == 'nickserv'
-            and 'identified' in message):
+        if (not self.identified and nick.lower() == 'nickserv' and
+                'identified' in message):
             self.identified = True
             for ch in self.factory.channels:
                 self.join(ch)
@@ -151,9 +156,10 @@ class KwBotIRCProtocol(irc.IRCClient):
         args = (args or '').strip()
         # Get the function corresponding to the command given.
         func = getattr(self, 'command_' + command, None)
-        # Or, if there was no function, ignore the message.
         if func is None:
-            return
+            # Try to get a factoid.
+            func = self.command_factoid
+            args = (command, args)
         # maybeDeferred will always return a Deferred. It calls func(rest), and
         # if that returned a Deferred, return that. Otherwise, return the
         # return value of the function wrapped in
@@ -162,6 +168,8 @@ class KwBotIRCProtocol(irc.IRCClient):
         d.addCallback(self._sendMessage, channel, nick)
 
     def _sendMessage(self, msg, target, nick=None):
+        if msg is None:
+            return
         if nick:
             msg = '%s: %s' % (nick, msg)
         self.msg(target, msg)
@@ -177,17 +185,48 @@ class KwBotIRCProtocol(irc.IRCClient):
         return 'This is KwBot.  https://chriswarrick.com/kwbot/'
 
     def command_clear(self, originator, args, channel):
-        if originator != 'ChrisWarrick':
-            return 'Error: must be ChrisWarrick to clear tell queue.'
-        else:
-            self.toBeDelivered = {}
-            return 'tell queue cleared successfully.'
+        if originator != ADMIN:
+            return 'Error: must be admin to clear tell queue.'
+
+        self.toBeDelivered = {}
+        return 'Tell queue cleared successfully.'
 
     def command_hello(self, *args):
         return 'Hello!'
 
     def command_hi(self, *args):
         return 'Hi!'
+
+    def load_factoids(self):
+        with io.open(HOME + "/factoids.json", encoding="utf-8") as fh:
+            factoids = json.load(fh)
+        self.factoids = {}
+        self.fcount = 0
+        for channel, chf in factoids.iteritems():
+            chanfactoids = {}
+            for k, v in chf.iteritems():
+                chanfactoids[k.encode('utf-8')] = v.encode('utf-8')
+                self.fcount += 1
+            self.factoids[channel.encode('utf-8')] = chanfactoids
+        log.msg("{0} factoids loaded".format(self.fcount))
+        return self.fcount
+
+    def command_factoid(self, nick, args, channel):
+        factoid, args = args
+        out = None
+        # Try to get chanel first.
+        chf = self.factoids.get(channel)
+        if chf is not None:
+            out = chf.get(factoid)
+
+        # Try globals next.
+        if out is None:
+            out = self.factoids["!global"].get(factoid)
+
+        return out
+
+    def command_factoids(self, nick, args, channel):
+        return channel + " factoids: " + ', '.join(sorted(self.factoids[channel]))
 
     def command_tell(self, originator, args, channel):
         target, msg = args.split(' ', 1)
@@ -204,6 +243,22 @@ class KwBotIRCProtocol(irc.IRCClient):
             return 'Logs for #nikola: https://irclogs.getnikola.com/'
         else:
             return 'This channel is logged, but the logs are not available publicly yet.  Channel operators can ask for publication.'
+
+    def command_rehash(self, originator, args, channel):
+        if originator != ADMIN:
+            return "Error: must be admin to rehash."
+        GHIssuesResource.tokenmap = {}
+
+        with open(HOME + '/tokens') as fh:
+            for l in fh:
+                k, v = l.split(':')
+                GHIssuesResource.tokenmap[k] = v.strip()
+
+        self.load_factoids()
+
+        return "{0} tokens and {1} factoids loaded.".format(
+            len(GHIssuesResource.tokenmap),
+            self.fcount)
 
     def _sendTells(self, target, channel):
         d = self.toBeDelivered.get(channel, {}).pop(target, [])
@@ -231,7 +286,7 @@ class KwBotIRCProtocol(irc.IRCClient):
 
 class KwBotIRCFactory(protocol.ReconnectingClientFactory):
     protocol = KwBotIRCProtocol
-    channels = ['#nikola', '##kwbot']
+    channels = CHANNELS
 
 
 class GHIssuesResource(resource.Resource):
@@ -255,12 +310,13 @@ class GHIssuesResource(resource.Resource):
             k, v = l.split(':')
             tokenmap[k] = v.strip()
 
+    log.msg("GHIssues: {0} tokens loaded".format(len(tokenmap)))
+
     def render_GET(self, request):
         request.setHeader("content-type", "text/plain")
         request.setResponseCode(400)
         log.msg('GHIssues: GET {0} {1}'.format(request.uri, request.client))
         return b'does not compute'
-
 
     def render_POST(self, request):
         request.setHeader("content-type", "text/plain")
