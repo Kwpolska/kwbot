@@ -66,6 +66,7 @@ except ImportError:
 
 # Settings.
 HOME = '/home/kwpolska/virtualenvs/kwbot'
+CONFHOME = '/home/kwpolska/git/kwbot.conf'
 LOGDIR = HOME + '/logs'
 ADMIN = 'ChrisWarrick'
 NIKOLOGS = '/home/kwpolska/nikola-logs/logs'
@@ -99,7 +100,7 @@ class KwBotIRCProtocol(irc.IRCClient):
         self.deferred.errback(reason)
 
     def signedOn(self):
-        with open('/home/kwpolska/kwbot-password') as fh:
+        with open(CONFHOME + '/password.txt') as fh:
             NICKSERV_PWD = fh.read().strip()
         self.msg('NickServ', 'identify KwBot {0}'.format(NICKSERV_PWD))
         if systemd is not None:
@@ -198,7 +199,7 @@ class KwBotIRCProtocol(irc.IRCClient):
         return 'Hi!'
 
     def load_factoids(self):
-        with io.open(HOME + "/factoids.json", encoding="utf-8") as fh:
+        with io.open(CONFHOME + "/factoids.json", encoding="utf-8") as fh:
             factoids = json.load(fh)
         self.factoids = {}
         self.fcount = 0
@@ -248,11 +249,7 @@ class KwBotIRCProtocol(irc.IRCClient):
         if originator != ADMIN:
             return "Error: must be admin to rehash."
         GHIssuesResource.tokenmap = {}
-
-        with open(HOME + '/tokens') as fh:
-            for l in fh:
-                k, v = l.split(':')
-                GHIssuesResource.tokenmap[k] = v.strip()
+        GHIssuesResource.load_tokenmap()
 
         self.load_factoids()
 
@@ -305,12 +302,19 @@ class GHIssuesResource(resource.Resource):
 
     tokenmap = {}
 
-    with open(HOME + '/tokens') as fh:
-        for l in fh:
-            k, v = l.split(':')
-            tokenmap[k] = v.strip()
+    def __init__(self):
+        resource.Resource.__init__(self)
+        self.load_tokenmap()
 
-    log.msg("GHIssues: {0} tokens loaded".format(len(tokenmap)))
+    @staticmethod
+    def load_tokenmap():
+        GHIssuesResource.tokenmap = {}
+        with open(CONFHOME + '/tokenmap.csv') as fh:
+            for l in fh:
+                k, v = l.split(',')
+                GHIssuesResource.tokenmap[k] = v.strip()
+
+        log.msg("GHIssues: {0} tokens loaded".format(len(GHIssuesResource.tokenmap)))
 
     def render_GET(self, request):
         request.setHeader("content-type", "text/plain")
