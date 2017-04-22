@@ -1,0 +1,11 @@
+[Unit]
+Description=A friendly IRC bot
+After=network.target
+
+[Service]
+Type=notify
+ExecStart=/home/kwpolska/virtualenvs/kwbot/bin/python /home/kwpolska/git/kwbot/kwbot.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
