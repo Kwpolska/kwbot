@@ -70,9 +70,11 @@ CONFHOME = '/home/kwpolska/git/kwbot.conf'
 LOGDIR = HOME + '/logs'
 ADMIN = 'ChrisWarrick'
 NIKOLOGS = '/home/kwpolska/nikola-logs/logs'
-CHANNELS = ["##kwbot", "#nikola"]
 GHISSUES_TXT = u'[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017: {title} \00302\037{url}\017'
 GHISSUES_ASSIGN = u'[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017 to \00315{assignee}\017: {title} \00302\037{url}\017'
+
+with open(CONFHOME + '/channels.txt') as fh:
+    CHANNELS = [l.strip() for l in fh]
 
 # A regexp to recognize commands.
 CMDR = re.compile('(KwBot.? |!)(?P<command>\S+)(?P<args> .*)?', re.U | re.I)
