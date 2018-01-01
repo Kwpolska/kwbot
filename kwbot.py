@@ -2,7 +2,7 @@
 # -*- encoding: utf-8 -*-
 # KwBot
 # A simple, opinionated Python/Twisted bot.
-# Copyright © 2015-2017, Chris Warrick.
+# Copyright © 2015-2018, Chris Warrick.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
