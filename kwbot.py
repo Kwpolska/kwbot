@@ -105,7 +105,7 @@ class KwBotIRCProtocol(irc.IRCClient):
             NICKSERV_PWD = fh.read().strip()
         self.msg('NickServ', 'identify KwBot {0}'.format(NICKSERV_PWD))
         if systemd is not None:
-            systemd.daemon.notify('READY=1')
+            systemd.daemon.notify(systemd.daemon.Notification.READY)
 
     def joined(self, channel):
         log.msg('joined ' + channel)
