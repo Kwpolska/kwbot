@@ -2,7 +2,7 @@
 # -*- encoding: utf-8 -*-
 # KwBot
 # A simple, opinionated Python/Twisted bot.
-# Copyright © 2015-2018, Chris Warrick.
+# Copyright © 2015-2019, Chris Warrick.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,6 @@
 import datetime
 import sys
 import os
-import io
 import re
 import json
 import hmac
@@ -201,13 +200,13 @@ class KwBotIRCProtocol(irc.IRCClient):
         return 'Hi!'
 
     def load_factoids(self):
-        with io.open(CONFHOME + "/factoids.json", encoding="utf-8") as fh:
+        with open(CONFHOME + "/factoids.json", encoding="utf-8") as fh:
             factoids = json.load(fh)
         self.factoids = {}
         self.fcount = 0
-        for channel, chf in factoids.iteritems():
+        for channel, chf in factoids.items():
             chanfactoids = {}
-            for k, v in chf.iteritems():
+            for k, v in chf.items():
                 chanfactoids[k.encode('utf-8')] = v.encode('utf-8')
                 self.fcount += 1
             self.factoids[channel.encode('utf-8')] = chanfactoids
