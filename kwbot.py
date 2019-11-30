@@ -76,7 +76,7 @@ with open(CONFHOME + '/channels.txt') as fh:
     CHANNELS = [l.strip() for l in fh]
 
 # A regexp to recognize commands.
-CMDR = re.compile('(KwBot.? |!)(?P<command>\S+)(?P<args> .*)?', re.U | re.I)
+CMDR = re.compile(r'(KwBot.? |!)(?P<command>\S+)(?P<args> .*)?', re.U | re.I)
 # A regexp to remove all mIRC colors.
 COLR = re.compile('(\x03\\d\\d?|\x03\\d\\d?,\\d\\d?|\x02|\x0f|\x16|\x1d|\x1f)')
 
@@ -207,16 +207,16 @@ class KwBotIRCProtocol(irc.IRCClient):
         for channel, chf in factoids.items():
             chanfactoids = {}
             for k, v in chf.items():
-                chanfactoids[k.encode('utf-8')] = v.encode('utf-8')
+                chanfactoids[k] = v
                 self.fcount += 1
-            self.factoids[channel.encode('utf-8')] = chanfactoids
+            self.factoids[channel] = chanfactoids
         log.msg("{0} factoids loaded".format(self.fcount))
         return self.fcount
 
     def command_factoid(self, nick, args, channel):
         factoid, args = args
         out = None
-        # Try to get chanel first.
+        # Try to get channel first.
         chf = self.factoids.get(channel)
         if chf is not None:
             out = chf.get(factoid)
@@ -321,7 +321,7 @@ class GHIssuesResource(resource.Resource):
         request.setHeader("content-type", "text/plain")
         request.setResponseCode(400)
         log.msg('GHIssues: GET {0} {1}'.format(request.uri, request.client))
-        return b'does not compute'
+        return 'does not compute'
 
     def render_POST(self, request):
         request.setHeader("content-type", "text/plain")
@@ -333,11 +333,11 @@ class GHIssuesResource(resource.Resource):
         if event == 'ping':
             log.msg('GHIssues: PING {0}'.format(data['hook']))
             request.setResponseCode(200)
-            return b'pong'
+            return 'pong'
         elif event != 'issues':
             request.setResponseCode(400)
             log.msg('GHIssues: wtf event')
-            return b'wtf event'
+            return 'wtf event'
         try:
             info = {
                 'repo': data['repository']['name'],
@@ -350,7 +350,7 @@ class GHIssuesResource(resource.Resource):
         except KeyError:
             request.setResponseCode(400)
             log.msg('GHIssues: wtf info')
-            return b'wtf info'
+            return 'wtf info'
 
         repo_full = data['repository']['full_name']
 
@@ -359,20 +359,20 @@ class GHIssuesResource(resource.Resource):
         if hmac.compare_digest('sha1=' + mac.hexdigest(), sig) is False:
             request.setResponseCode(400)
             log.msg('GHIssues: wtf signature')
-            return b'wtf signature'
+            return 'wtf signature'
 
         if repo_full not in self.repomap:
             request.setResponseCode(400)
             log.msg('GHIssues: wtf unauthorized')
-            return b'wtf unauthorized'
+            return 'wtf unauthorized'
         else:
             channel = self.repomap[repo_full]
 
         if info['action'] in ['opened', 'closed', 'reopened', 'unassigned']:
-            BOT._sendMessage(GHISSUES_TXT.format(**info).encode('utf-8'), channel)
+            BOT._sendMessage(GHISSUES_TXT.format(**info), channel)
         elif info['action'] == 'assigned':
             info['assignee'] = data['assignee']['login']
-            BOT._sendMessage(GHISSUES_ASSIGN.format(**info).encode('utf-8'), channel)
+            BOT._sendMessage(GHISSUES_ASSIGN.format(**info), channel)
         else:
             request.setResponseCode(200)
             log.msg('GHIssues: wtf action (200)')
