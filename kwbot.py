@@ -355,7 +355,7 @@ class GHIssuesResource(resource.Resource):
         repo_full = data['repository']['full_name']
 
         sig = request.getHeader('X-Hub-Signature')
-        mac = hmac.new(self.tokenmap[repo_full], msg=d, digestmod=hashlib.sha1)
+        mac = hmac.new(self.tokenmap[repo_full].encode('latin1'), msg=d, digestmod=hashlib.sha1)
         if hmac.compare_digest('sha1=' + mac.hexdigest(), sig) is False:
             request.setResponseCode(400)
             log.msg('GHIssues: wtf signature')
