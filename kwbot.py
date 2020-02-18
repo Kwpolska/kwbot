@@ -69,8 +69,12 @@ CONFHOME = '/home/kwpolska/git/kwbot.conf'
 LOGDIR = HOME + '/logs'
 ADMIN = 'ChrisWarrick'
 NIKOLOGS = '/home/kwpolska/nikola-logs/logs'
-GHISSUES_TXT = u'[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017: {title} \00302\037{url}\017'
-GHISSUES_ASSIGN = u'[\00313{repo}\017] \00315{actor}\017 {action} issue \002#{number}\017 to \00315{assignee}\017: {title} \00302\037{url}\017'
+GHISSUES_TXT = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017: {title} \00302\037{url}\017'
+GHISSUES_ASSIGN = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017 to \00315{assignee}\017: {title} \00302\037{url}\017'
+GHISSUES_PR = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017 (\00311{head}\017): {title} \00302\037{url}\017'
+GHISSUES_ASSIGN_PR = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017 (\00311{head}\017) to \00315{assignee}\017: {title} \00302\037{url}\017'
+GHISSUES_REVIEW = u'[\00313{repo}\017] \00315{actor}\017 requested review on {type} \002#{number}\017 (\00311{head}\017) from \00315{reviewer}\017: {title} \00302\037{url}\017'
+GHISSUES_UNREVIEW = u'[\00313{repo}\017] \00315{actor}\017 removed review request on {type} \002#{number}\017 (\00311{head}\017) from \00315{reviewer}\017: {title} \00302\037{url}\017'
 
 with open(CONFHOME + '/channels.txt') as fh:
     CHANNELS = [l.strip() for l in fh]
@@ -326,24 +330,29 @@ class GHIssuesResource(resource.Resource):
         if event == 'ping':
             log.msg('GHIssues: PING {0}'.format(data['hook']))
             request.setResponseCode(200)
-            return 'pong'
-        elif event != 'issues':
+            return b'pong'
+        elif event not in ('issues', 'pull_request'):
             request.setResponseCode(400)
             log.msg('GHIssues: wtf event')
-            return 'wtf event'
+            return b'wtf event'
+        is_issue = event == 'issues'
+        evkey = 'issue' if is_issue else 'pull_request'
         try:
             info = {
+                'type': 'issue' if is_issue else 'pull request',
                 'repo': data['repository']['name'],
                 'actor': data['sender']['login'],
                 'action': data['action'],
-                'number': data['issue']['number'],
-                'title': data['issue']['title'],
-                'url': data['issue']['html_url'],
+                'number': data[evkey]['number'],
+                'title': data[evkey]['title'],
+                'url': data[evkey]['html_url'],
             }
+            if not is_issue:
+                info['head'] = data[evkey]['head']['label']
         except KeyError:
             request.setResponseCode(400)
             log.msg('GHIssues: wtf info')
-            return 'wtf info'
+            return b'wtf info'
 
         repo_full = data['repository']['full_name']
 
@@ -352,24 +361,33 @@ class GHIssuesResource(resource.Resource):
         if hmac.compare_digest('sha1=' + mac.hexdigest(), sig) is False:
             request.setResponseCode(400)
             log.msg('GHIssues: wtf signature')
-            return 'wtf signature'
+            return b'wtf signature'
 
         if repo_full not in self.repomap:
             request.setResponseCode(400)
             log.msg('GHIssues: wtf unauthorized')
-            return 'wtf unauthorized'
+            return b'wtf unauthorized'
         else:
             channel = self.repomap[repo_full]
 
+        message = None
         if info['action'] in ['opened', 'closed', 'reopened', 'unassigned']:
-            BOT._sendMessage(GHISSUES_TXT.format(**info), channel)
+            message = GHISSUES_TXT if is_issue else GHISSUES_PR
         elif info['action'] == 'assigned':
             info['assignee'] = data['assignee']['login']
+            message = GHISSUES_ASSIGN if is_issue else GHISSUES_ASSIGN_PR
             BOT._sendMessage(GHISSUES_ASSIGN.format(**info), channel)
-        else:
+
+        elif info['action'] in ('review_requested', 'review_request_removed'):
+            info['reviewer'] = data['requested_reviewer']['login']
+            message = GHISSUES_REVIEW if info['action'] == 'review_requested' else GHISSUES_UNREVIEW
+
+        if not message:
             request.setResponseCode(200)
             log.msg('GHIssues: wtf action (200)')
             return b'wtf action'
+
+        BOT._sendMessage(message.format(**info), channel)
         request.setResponseCode(200)
         return b'ack'
 
