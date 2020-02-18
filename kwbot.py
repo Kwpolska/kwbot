@@ -71,10 +71,10 @@ ADMIN = 'ChrisWarrick'
 NIKOLOGS = '/home/kwpolska/nikola-logs/logs'
 GHISSUES_TXT = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017: {title} \00302\037{url}\017'
 GHISSUES_ASSIGN = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017 to \00315{assignee}\017: {title} \00302\037{url}\017'
-GHISSUES_PR = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017 (\00311{head}\017): {title} \00302\037{url}\017'
-GHISSUES_ASSIGN_PR = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017 (\00311{head}\017) to \00315{assignee}\017: {title} \00302\037{url}\017'
-GHISSUES_REVIEW = u'[\00313{repo}\017] \00315{actor}\017 requested review on {type} \002#{number}\017 (\00311{head}\017) from \00315{reviewer}\017: {title} \00302\037{url}\017'
-GHISSUES_UNREVIEW = u'[\00313{repo}\017] \00315{actor}\017 removed review request on {type} \002#{number}\017 (\00311{head}\017) from \00315{reviewer}\017: {title} \00302\037{url}\017'
+GHISSUES_PR = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017 (\00310{head}\017): {title} \00302\037{url}\017'
+GHISSUES_ASSIGN_PR = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017 (\00310{head}\017) to \00315{assignee}\017: {title} \00302\037{url}\017'
+GHISSUES_REVIEW = u'[\00313{repo}\017] \00315{actor}\017 requested review on {type} \002#{number}\017 (\00310{head}\017) from \00315{reviewer}\017: {title} \00302\037{url}\017'
+GHISSUES_UNREVIEW = u'[\00313{repo}\017] \00315{actor}\017 removed review request on {type} \002#{number}\017 (\00310{head}\017) from \00315{reviewer}\017: {title} \00302\037{url}\017'
 
 with open(CONFHOME + '/channels.txt') as fh:
     CHANNELS = [l.strip() for l in fh]
