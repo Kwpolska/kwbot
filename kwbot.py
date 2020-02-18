@@ -289,18 +289,7 @@ class KwBotIRCFactory(protocol.ReconnectingClientFactory):
 
 class GHIssuesResource(resource.Resource):
     isLeaf = True
-
-    repomap = {
-        'getnikola/nikola': '#nikola',
-        'getnikola/nikola-site': '#nikola',
-        'getnikola/nikola-themes': '#nikola',
-        'getnikola/nikola-users': '#nikola',
-        'getnikola/plugins': '#nikola',
-        'getnikola/coil': '#nikola',
-        'getnikola/releng': '#nikola',
-        'Kwpolska/kwbot': '##kwbot',
-    }
-
+    repomap = {}
     tokenmap = {}
 
     def __init__(self):
@@ -310,10 +299,14 @@ class GHIssuesResource(resource.Resource):
     @staticmethod
     def load_tokenmap():
         GHIssuesResource.tokenmap = {}
-        with open(CONFHOME + '/tokenmap.csv') as fh:
-            for l in fh:
-                k, v = l.split(',')
-                GHIssuesResource.tokenmap[k] = v.strip()
+        for src, dest in (
+                ('/repomap.csv', GHIssuesResource.repomap),
+                ('/tokenmap.csv', GHIssuesResource.tokenmap)
+        ):
+            with open(CONFHOME + src) as fh:
+                for l in fh:
+                    k, v = l.split(',')
+                    dest[k] = v.strip()
 
         log.msg("GHIssues: {0} tokens loaded".format(len(GHIssuesResource.tokenmap)))
 
