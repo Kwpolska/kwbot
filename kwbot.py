@@ -52,7 +52,7 @@ import json
 import hmac
 import hashlib
 
-from twisted.internet import defer, protocol
+from twisted.internet import defer, protocol, ssl
 from twisted.python import log
 from twisted.words.protocols import irc
 from twisted.web import server, resource
@@ -77,14 +77,16 @@ GHISSUES_REVIEW = u'[\00313{repo}\017] \00315{actor}\017 requested review on {ty
 GHISSUES_UNREVIEW = u'[\00313{repo}\017] \00315{actor}\017 removed review request on {type} \002#{number}\017 (\00310{head}\017) from \00315{reviewer}\017: {title} \00302\037{url}\017'
 
 with open(CONFHOME + '/channels.txt') as fh:
-    CHANNELS = [l.strip() for l in fh]
+    CHANNELS = [l.strip().split(",") for l in fh]
 
 # A regexp to recognize commands.
 CMDR = re.compile(r'(KwBot.? |!)(?P<command>\S+)(?P<args> .*)?', re.U | re.I)
 # A regexp to remove all mIRC colors.
 COLR = re.compile('(\x03\\d\\d?|\x03\\d\\d?,\\d\\d?|\x02|\x0f|\x16|\x1d|\x1f)')
 
-BOT = None
+BOT = []
+READY_BOTS = 0
+READY_EXPECTED = 1
 
 
 class KwBotIRCProtocol(irc.IRCClient):
@@ -95,20 +97,30 @@ class KwBotIRCProtocol(irc.IRCClient):
 
     def __init__(self):
         global BOT
-        BOT = self
+        BOT.append(self)
         self.deferred = defer.Deferred()
         self.toBeDelivered = {}
         self.factoids = {}
         self.fcount = self.load_factoids()
 
+    @property
+    def network(self):
+        if "freenode" in self.hostname:
+            return "freenode"
+        elif "libera" in self.hostname:
+            return "libera"
+        return "?"
+
     def connectionLost(self, reason):
         self.deferred.errback(reason)
 
     def signedOn(self):
+        global READY_BOTS
         with open(CONFHOME + '/password.txt') as fh:
             NICKSERV_PWD = fh.read().strip()
         self.msg('NickServ', 'identify KwBot {0}'.format(NICKSERV_PWD))
-        if systemd is not None:
+        READY_BOTS += 1
+        if READY_BOTS == READY_EXPECTED and systemd is not None:
             systemd.daemon.notify(systemd.daemon.Notification.READY)
 
     def joined(self, channel):
@@ -141,8 +153,9 @@ class KwBotIRCProtocol(irc.IRCClient):
         if (not self.identified and nick.lower() == 'nickserv' and
                 'identified' in message):
             self.identified = True
-            for ch in self.factory.channels:
-                self.join(ch)
+            for net, ch in self.factory.channels:
+                if net == self.network:
+                    self.join(ch)
         if channel != '*':
             self._logmsg(channel, nick, message, notice=True)
 
@@ -188,7 +201,7 @@ class KwBotIRCProtocol(irc.IRCClient):
         return 'pong'
 
     def command_help(self, *args):
-        return 'This is KwBot.  https://chriswarrick.com/kwbot/'
+        return 'This is KwBot. https://chriswarrick.com/kwbot/'
 
     def command_clear(self, originator, args, channel):
         if originator != ADMIN:
@@ -248,7 +261,7 @@ class KwBotIRCProtocol(irc.IRCClient):
         if channel == '#nikola':
             return 'Logs for #nikola: https://irclogs.getnikola.com/'
         else:
-            return 'This channel is logged, but the logs are not available publicly yet.  Channel operators can ask for publication.'
+            return 'This channel is logged, but the logs are not available publicly yet. Channel operators can ask for publication.'
 
     def command_rehash(self, originator, args, channel):
         if originator != ADMIN:
@@ -376,7 +389,8 @@ class GHIssuesResource(resource.Resource):
         elif info['action'] == 'assigned':
             info['assignee'] = data['assignee']['login']
             message = GHISSUES_ASSIGN if is_issue else GHISSUES_ASSIGN_PR
-            BOT._sendMessage(GHISSUES_ASSIGN.format(**info), channel)
+            for b in BOT:
+                b._sendMessage(GHISSUES_ASSIGN.format(**info), channel)
 
         elif info['action'] in ('review_requested', 'review_request_removed'):
             info['reviewer'] = data['requested_reviewer']['login']
@@ -387,7 +401,8 @@ class GHIssuesResource(resource.Resource):
             log.msg('GHIssues: wtf action (200)')
             return b'wtf action'
 
-        BOT._sendMessage(message.format(**info), channel)
+        for b in BOT:
+            b._sendMessage(message.format(**info), channel)
         request.setResponseCode(200)
         return b'ack'
 
@@ -395,6 +410,7 @@ if __name__ == '__main__':
     log.startLogging(sys.stderr)
     log.startLogging(open(os.path.join(LOGDIR, 'KwBot.log'), 'a'))
     ircf = KwBotIRCFactory()
-    reactor.connectTCP("chat.freenode.net", 6667, ircf)
+    #reactor.connectTCP("chat.freenode.net", 6667, ircf)
+    reactor.connectSSL("irc.libera.chat", 6697, ircf, ssl.ClientContextFactory())
     reactor.listenTCP(5944, server.Site(GHIssuesResource()))
     reactor.run()
