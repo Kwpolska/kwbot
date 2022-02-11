@@ -32,11 +32,11 @@ six==1.16.0
     #   pyopenssl
 systemd==0.16.1
     # via -r requirements.in
-twisted==21.7.0
+twisted==22.1.0
     # via -r requirements.in
 typing-extensions==4.0.1
     # via twisted
-zope.interface==5.4.0
+zope-interface==5.4.0
     # via twisted
 
 # The following packages are considered to be unsafe in a requirements file:
