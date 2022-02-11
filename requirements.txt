@@ -4,7 +4,7 @@
 #
 #    pip-compile
 #
-attrs==21.2.0
+attrs==21.4.0
     # via
     #   automat
     #   twisted
@@ -24,19 +24,17 @@ incremental==21.3.0
     # via twisted
 pycparser==2.21
     # via cffi
-pyopenssl==21.0.0
+pyopenssl==22.0.0
     # via -r requirements.in
 six==1.16.0
-    # via
-    #   automat
-    #   pyopenssl
+    # via automat
 systemd==0.16.1
     # via -r requirements.in
-twisted==21.7.0
+twisted==22.1.0
     # via -r requirements.in
 typing-extensions==4.0.1
     # via twisted
-zope.interface==5.4.0
+zope-interface==5.4.0
     # via twisted
 
 # The following packages are considered to be unsafe in a requirements file:
