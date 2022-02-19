@@ -121,7 +121,7 @@ class KwBotIRCProtocol(irc.IRCClient):
         self.msg('NickServ', 'identify KwBot {0}'.format(NICKSERV_PWD))
         READY_BOTS += 1
         if READY_BOTS == READY_EXPECTED and systemd is not None:
-            systemd.daemon.notify(systemd.daemon.Notification.READY)
+            systemd.daemon.notify("READY=1")
 
     def joined(self, channel):
         log.msg('joined ' + channel)

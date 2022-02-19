@@ -1,3 +1,4 @@
 pyOpenSSL
-systemd
+service-identity
+systemd-python
 Twisted
