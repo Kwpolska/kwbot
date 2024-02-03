@@ -131,7 +131,7 @@ class KwBotIRCProtocol(irc.IRCClient):
         cd = os.path.join(LOGDIR, channel)
         if channel != '#nikola' and not os.path.exists(cd):
             os.makedirs(cd)
-        dt = datetime.datetime.utcnow()
+        dt = datetime.datetime.now(datetime.UTC)
         date = dt.strftime('%Y-%m-%d')
         time = dt.strftime('%H:%M:%S')
         if notice:
