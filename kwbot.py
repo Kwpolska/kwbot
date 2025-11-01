@@ -64,7 +64,7 @@ except ImportError:
     systemd = None
 
 # Settings.
-HOME = '/home/kwpolska/virtualenvs/kwbot'
+HOME = '/srv/kwbot'
 CONFHOME = '/home/kwpolska/git/kwbot.conf'
 LOGDIR = HOME + '/logs'
 ADMIN = 'ChrisWarrick'
@@ -184,9 +184,9 @@ class KwBotIRCProtocol(irc.IRCClient):
         # return value of the function wrapped in
         d = defer.maybeDeferred(func, nick, args, channel)
         d.addErrback(self._showError)
-        d.addCallback(self._sendMessage, channel, nick)
+        d.addCallback(self._sendChatMessage, channel, nick)
 
-    def _sendMessage(self, msg, target, nick=None):
+    def _sendChatMessage(self, msg, target, nick=None):
         if msg is None:
             return
         if nick:
@@ -279,7 +279,7 @@ class KwBotIRCProtocol(irc.IRCClient):
         d = self.toBeDelivered.get(channel, {}).pop(target, [])
         for i in d:
             msg = '{0} <{1}> {2}'.format(*i)
-            self._sendMessage(msg, channel, target)
+            self._sendChatMessage(msg, channel, target)
 
     def userJoined(self, target, channel):
         self._sendTells(target, channel)
@@ -390,7 +390,7 @@ class GHIssuesResource(resource.Resource):
             info['assignee'] = data['assignee']['login']
             message = GHISSUES_ASSIGN if is_issue else GHISSUES_ASSIGN_PR
             for b in BOT:
-                b._sendMessage(GHISSUES_ASSIGN.format(**info), channel)
+                b._sendChatMessage(GHISSUES_ASSIGN.format(**info), channel)
 
         elif info['action'] in ('review_requested', 'review_request_removed'):
             info['reviewer'] = data['requested_reviewer']['login']
@@ -402,7 +402,7 @@ class GHIssuesResource(resource.Resource):
             return b'wtf action'
 
         for b in BOT:
-            b._sendMessage(message.format(**info), channel)
+            b._sendChatMessage(message.format(**info), channel)
         request.setResponseCode(200)
         return b'ack'
 
