@@ -1,4 +1,3 @@
 pyOpenSSL
 service-identity
-systemd-python
-Twisted==22.1.0
+Twisted

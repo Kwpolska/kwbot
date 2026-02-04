@@ -64,11 +64,10 @@ except ImportError:
     systemd = None
 
 # Settings.
-HOME = '/srv/kwbot'
-CONFHOME = '/home/kwpolska/git/kwbot.conf'
-LOGDIR = HOME + '/logs'
+CONFHOME = os.getenv('KWBOT_CONFHOME', '/home/kwpolska/git/kwbot.conf')
+LOGDIR = os.getenv('KWBOT_LOGDIR', '/srv/kwbot/logs')
 ADMIN = 'ChrisWarrick'
-NIKOLOGS = '/home/kwpolska/nikola-logs/logs'
+NIKOLOGS = os.getenv('KWBOT_LOGDIR_NIKOLA', '/home/kwpolska/nikola-logs/logs')
 GHISSUES_TXT = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017: {title} \00302\037{url}\017'
 GHISSUES_ASSIGN = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017 to \00315{assignee}\017: {title} \00302\037{url}\017'
 GHISSUES_PR = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017 (\00310{head}\017): {title} \00302\037{url}\017'
