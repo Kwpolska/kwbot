@@ -67,7 +67,7 @@ except ImportError:
 CONFHOME = os.getenv('KWBOT_CONFHOME', '/home/kwpolska/git/kwbot.conf')
 LOGDIR = os.getenv('KWBOT_LOGDIR', '/srv/kwbot/logs')
 ADMIN = 'ChrisWarrick'
-NIKOLOGS = os.getenv('KWBOT_LOGDIR_NIKOLA', '/home/kwpolska/nikola-logs/logs')
+LOGDIR_NIKOLA = os.getenv('KWBOT_LOGDIR_NIKOLA', '/home/kwpolska/nikola-logs/logs')
 GHISSUES_TXT = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017: {title} \00302\037{url}\017'
 GHISSUES_ASSIGN = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017 to \00315{assignee}\017: {title} \00302\037{url}\017'
 GHISSUES_PR = u'[\00313{repo}\017] \00315{actor}\017 {action} {type} \002#{number}\017 (\00310{head}\017): {title} \00302\037{url}\017'
@@ -141,7 +141,7 @@ class KwBotIRCProtocol(irc.IRCClient):
             nickg = '<{0}>'.format(nick)
         message = COLR.sub('', message)
         if channel == '#nikola':
-            with open(os.path.join(NIKOLOGS, date + '.log'), 'a') as fh:
+            with open(os.path.join(LOGDIR_NIKOLA, date + '.log'), 'a') as fh:
                 fh.write('{0} {1} {2}\n'.format(time, nickg, message))
         else:
             with open(os.path.join(cd, date + '.log'), 'a') as fh:
@@ -330,7 +330,7 @@ class GHIssuesResource(resource.Resource):
         request.setHeader("content-type", "text/plain")
         request.setResponseCode(400)
         log.msg('GHIssues: GET {0} {1}'.format(request.uri, request.client))
-        return 'does not compute'
+        return b'does not compute'
 
     def render_POST(self, request):
         request.setHeader("content-type", "text/plain")
@@ -411,5 +411,5 @@ if __name__ == '__main__':
     ircf = KwBotIRCFactory()
     #reactor.connectTCP("chat.freenode.net", 6667, ircf)
     reactor.connectSSL("irc.libera.chat", 6697, ircf, ssl.ClientContextFactory())
-    reactor.listenTCP(5944, server.Site(GHIssuesResource()))
+    reactor.listenTCP(8080, server.Site(GHIssuesResource()))
     reactor.run()
