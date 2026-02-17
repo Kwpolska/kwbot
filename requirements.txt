@@ -14,7 +14,7 @@ cffi==2.0.0
     # via cryptography
 constantly==23.10.4
     # via twisted
-cryptography==46.0.4
+cryptography==46.0.5
     # via
     #   pyopenssl
     #   service-identity
