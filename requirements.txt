@@ -26,7 +26,7 @@ incremental==24.11.0
     # via twisted
 packaging==26.0
     # via incremental
-pyasn1==0.6.2
+pyasn1==0.6.3
     # via
     #   pyasn1-modules
     #   service-identity
